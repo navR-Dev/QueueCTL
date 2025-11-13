@@ -1,0 +1,5 @@
+{
+  "queue_file": "queue.json",
+  "default_max_retries": 3,
+  "default_backoff_base": 2
+}
