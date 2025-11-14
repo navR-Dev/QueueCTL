@@ -18,13 +18,40 @@ def cli():
 # ENQUEUE
 # ----------------------------
 @cli.command() # queuectl enqueue
-@click.argument("command")
-@click.option("--max-retries", default=None, help="Override default retry count")
-def enqueue(command, max_retries):
-    max_retries = max_retries or CONFIG["default_max_retries"] # Use config default if none given
-    job = Job(command, max_retries=max_retries)
+@click.argument("input_str")
+def enqueue(input_str):
+    # Detect JSON input if it starts with '{'
+    if input_str.strip().startswith("{"):
+        try:
+            data = json.loads(input_str) # Parse JSON
+        except json.JSONDecodeError:
+            click.echo("Invalid JSON format for enqueue.")
+            return
+
+        # Extract fields with fallbacks
+        custom_id = data.get("id", None) # Optional manual ID
+        command = data.get("command", None) # Command required
+        max_retries = data.get("max_retries", CONFIG["default_max_retries"])
+
+        if not command:
+            click.echo("JSON must include a 'command' field.")
+            return
+
+        # Create job
+        job = Job(command, max_retries=max_retries)
+
+        # Apply custom ID if provided
+        if custom_id:
+            job.id = custom_id
+
+        add_job(job)
+        click.echo(f"Enqueued job {job.id} ({job.command}) [JSON mode]")
+        return
+
+    # Otherwise treat as normal shell command
+    job = Job(input_str, CONFIG["default_max_retries"]) # Use config default retries
     add_job(job)
-    click.echo(f"Enqueued job {job.id} ({job.command})")
+    click.echo(f"Enqueued job {job.id} ({input_str}) [shell mode]")
 
 # ----------------------------
 # WORKER GROUP
